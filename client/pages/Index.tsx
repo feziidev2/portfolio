@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,6 +42,7 @@ export default function Index() {
     message: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -53,19 +55,45 @@ export default function Index() {
       ...formData,
       [e.target.name]: e.target.value
     });
+    if (submitStatus) {
+      setSubmitStatus(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitStatus(null);
 
-    // Simulate form submission
-    setTimeout(() => {
-      console.log("Form submitted:", formData);
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data?.success !== true) {
+        throw new Error(data?.message ?? "Failed to send message. Please try again later.");
+      }
+
+      setSubmitStatus({ type: "success", message: data.message ?? "Message sent successfully!" });
       setFormData({ name: "", email: "", message: "" });
+    } catch (error) {
+      console.error("Contact form submission failed", error);
+      setSubmitStatus({
+        type: "error",
+        message:
+          error instanceof Error && error.message
+            ? error.message
+            : "Failed to send message. Please try again later."
+      });
+    } finally {
       setIsSubmitting(false);
-      alert("Thank you for your message! I'll get back to you soon.");
-    }, 1000);
+    }
   };
 
   const skillCategories = {
@@ -1030,8 +1058,15 @@ export default function Index() {
                 </div>
 
                 <div className="flex gap-4 pt-6">
-                  <Button size="sm" variant="outline" className="border-sea-green-500/50 text-sea-green-400 hover:bg-sea-green-500/20 cursor-code hover:scale-110 transition-transform duration-200">
-                    <Github className="w-4 h-4" />
+                  <Button
+                    asChild
+                    size="sm"
+                    variant="outline"
+                    className="border-sea-green-500/50 text-sea-green-400 hover:bg-sea-green-500/20 cursor-code hover:scale-110 transition-transform duration-200"
+                  >
+                    <a href="https://github.com/feziidev2" target="_blank" rel="noreferrer" aria-label="GitHub">
+                      <Github className="w-4 h-4" />
+                    </a>
                   </Button>
                   <Button size="sm" variant="outline" className="border-sea-green-500/50 text-sea-green-400 hover:bg-sea-green-500/20 cursor-code hover:scale-110 transition-transform duration-200">
                     <Linkedin className="w-4 h-4" />
@@ -1122,6 +1157,16 @@ export default function Index() {
                       </>
                     )}
                   </Button>
+                  {submitStatus ? (
+                    <p
+                      className={cn(
+                        "text-sm font-medium",
+                        submitStatus.type === "success" ? "text-sea-green-400" : "text-red-400"
+                      )}
+                    >
+                      {submitStatus.message}
+                    </p>
+                  ) : null}
                 </form>
               </motion.div>
             </div>
